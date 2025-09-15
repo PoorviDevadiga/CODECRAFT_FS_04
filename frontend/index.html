@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>SwiftTalk</title>
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- HERO / HEADER (uses assets/hero.jpg) -->
+  <header class="hero">
+    <div class="hero-inner">
+      <h1>Welcome to SwiftTalk</h1>
+      <p class="tagline">Your words, in the heartbeat of now.</p>
+    </div>
+  </header>
+
+  <!-- Auth Section -->
+  <div id="authSection" class="centered-block">
+    <h2>Register</h2>
+    <form id="registerForm">
+      <input type="text" name="username" placeholder="Full name" required /><br />
+      <input type="email" name="email" placeholder="Email" required /><br />
+      <input type="password" name="password" placeholder="Password" required /><br />
+      <button type="submit" class="btn">Register</button>
+    </form>
+
+    <h2>Login</h2>
+    <form id="loginForm">
+      <input type="email" name="email" placeholder="Email" required /><br />
+      <input type="password" name="password" placeholder="Password" required /><br />
+      <button type="submit" class="btn">Login</button>
+    </form>
+
+    <p id="authMessage" class="auth-message"></p>
+  </div>
+
+  <!-- Chat Section -->
+  <div id="chatSection" style="display:none;">
+    <h2>Chat Room</h2>
+
+    <!-- JOIN ROOM block + Logout (Logout visible only for the logged-in client) -->
+    <div id="joinRoomBlock" class="join-room">
+      <input id="roomInput" placeholder="Enter room name" />
+      <button id="joinRoomBtn" class="btn accent">Join Room</button>
+      <span id="currentRoomLabel" class="room-label"></span>
+      <button id="logoutBtn" class="btn logout accent" style="display:none;">Logout</button>
+    </div>
+
+    <div id="onlineUsers">
+      <p><strong>Users:</strong></p>
+      <ul id="usersList"></ul>
+    </div>
+
+    <div id="messages" class="messages" ></div>
+    <div id="typing" class="typing"></div>
+
+    <div class="composer">
+      <input type="text" id="messageInput" placeholder="Type a message..." />
+      <input type="file" id="fileInput" style="display:none;" />
+      <button id="sendBtn" class="btn send accent">Send</button>
+      <button id="fileBtn" class="btn file accent">📎</button>
+    </div>
+  </div>
+
+  <!-- load socket.io client from backend -->
+  <script>
+    const backendURL = `${window.location.protocol}//${window.location.hostname}:4000`;
+    const socketScript = document.createElement('script');
+    socketScript.src = `${backendURL}/socket.io/socket.io.js`;
+    socketScript.onload = () => { window.socketIoLoaded = true; };
+    document.head.appendChild(socketScript);
+  </script>
+
+  <script>
+    // Global client-side state
+    let currentUserEmail = null;
+    let currentUserName = null;
+    let currentRoom = null;
+
+    const authSection = document.getElementById('authSection');
+    const chatSection = document.getElementById('chatSection');
+    const authMessage = document.getElementById('authMessage');
+
+    // Elements used later
+    const logoutBtn = document.getElementById('logoutBtn');
+
+    // Register
+    const registerForm = document.getElementById('registerForm');
+    registerForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(registerForm);
+      const payload = { username: fd.get('username'), email: fd.get('email'), password: fd.get('password') };
+      try {
+        const res = await fetch(`${backendURL}/auth/register`, {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify(payload)
+        });
+        const json = await res.json();
+        authMessage.innerText = json.message || 'Registered';
+      } catch (err) {
+        authMessage.innerText = 'Error occurred';
+      }
+    });
+
+    // Login — expects JSON { message, user: { email, name } }
+    const loginForm = document.getElementById('loginForm');
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(loginForm);
+      const payload = { email: fd.get('email'), password: fd.get('password') };
+      try {
+        const res = await fetch(`${backendURL}/auth/login`, {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify(payload)
+        });
+        const json = await res.json();
+        authMessage.innerText = json.message || 'Login';
+        if (json.user && json.user.email) {
+          currentUserEmail = json.user.email;
+          currentUserName = json.user.name || currentUserEmail;
+          authSection.style.display = 'none';
+          chatSection.style.display = 'block';
+          initChat(currentUserEmail, currentUserName);
+        }
+      } catch (err) {
+        console.error(err);
+        authMessage.innerText = 'Error occurred';
+      }
+    });
+
+    // initChat async to wait for socket.io client to load
+    async function initChat(email, name) {
+      // wait for socket.io client to be loaded
+      if (!window.socketIoLoaded) {
+        await new Promise(resolve => {
+          const t = setInterval(() => {
+            if (window.socketIoLoaded) { clearInterval(t); resolve(); }
+          }, 50);
+        });
+      }
+
+      const socket = io(backendURL);
+      const messagesDiv = document.getElementById('messages');
+      const messageInput = document.getElementById('messageInput');
+      const sendBtn = document.getElementById('sendBtn');
+      const usersList = document.getElementById('usersList');
+      const typingDiv = document.getElementById('typing');
+      const fileInput = document.getElementById('fileInput');
+      const fileBtn = document.getElementById('fileBtn');
+      const roomInput = document.getElementById('roomInput');
+      const joinRoomBtn = document.getElementById('joinRoomBtn');
+      const currentRoomLabel = document.getElementById('currentRoomLabel');
+
+      // show logout for this logged in user
+      logoutBtn.style.display = 'inline-block';
+      logoutBtn.addEventListener('click', () => {
+        try { socket.disconnect(); } catch (e) {}
+        currentUserEmail = null;
+        currentUserName = null;
+        currentRoom = null;
+        authSection.style.display = 'block';
+        chatSection.style.display = 'none';
+        logoutBtn.style.display = 'none';
+        // safe: reload to clear any in-memory state and reconnect cleanly if they login again
+        window.location.reload();
+      });
+
+      function formatTime(iso) {
+        if (!iso) return '';
+        const d = new Date(iso);
+        if (isNaN(d)) return '';
+        return d.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+      }
+
+      function renderMessage(m) {
+        // If message is tied to a room and the client is in a different room, skip
+        if (m.room && currentRoom && m.room !== currentRoom) return;
+        if (m.room && !currentRoom) return; // don't mix room messages into global
+
+        const p = document.createElement('p');
+        const senderEmail = m.user;
+        const senderName = m.userName || senderEmail;
+        const recipientName = m.toName || m.to || null;
+
+        if (m.file) {
+          p.className = senderEmail === currentUserEmail ? 'bubble right' : 'bubble left';
+          if (m.file.type && m.file.type.startsWith('image/')) {
+            p.innerHTML = `<strong>${senderName}:</strong><br>
+              <img src="${m.file.data}" alt="${m.file.name}" class="msg-image" /><br>
+              <span class="time">${formatTime(m.time)}</span>`;
+          } else if (m.file.type && m.file.type.startsWith('video/')) {
+            p.innerHTML = `<strong>${senderName}:</strong><br>
+              <video controls class="msg-video"><source src="${m.file.data}" type="${m.file.type}"></video><br>
+              <span class="time">${formatTime(m.time)}</span>`;
+          } else {
+            p.innerHTML = `<strong>${senderName}:</strong> <a href="${m.file.data}" download="${m.file.name}">${m.file.name}</a> <span class="time">${formatTime(m.time)}</span>`;
+          }
+        } else if (m.isPrivate) {
+          if (senderEmail === currentUserEmail) {
+            p.className = 'dm self';
+            p.innerHTML = `<em>You → ${recipientName} (DM):</em> ${m.msg} <span class="time">${formatTime(m.time)}</span>`;
+          } else {
+            p.className = 'dm';
+            p.innerHTML = `<em>${senderName} (DM):</em> ${m.msg} <span class="time">${formatTime(m.time)}</span>`;
+          }
+        } else {
+          p.className = senderEmail === currentUserEmail ? 'bubble right' : 'bubble left';
+          p.innerHTML = `<strong>${senderName}:</strong> ${m.msg} <span class="time">${formatTime(m.time)}</span>`;
+        }
+        messagesDiv.appendChild(p);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      }
+
+      // announce ourselves (send object with email & name so back-end can store name)
+      socket.emit('joinChat', { email, name });
+
+      // send message (respects currentRoom - if set, message goes to that room)
+      sendBtn.addEventListener('click', () => {
+        const txt = messageInput.value.trim();
+        if (!txt) return;
+        socket.emit('chatMessage', { user: currentUserEmail, userName: currentUserName, msg: txt, room: currentRoom });
+        socket.emit('stopTyping', currentUserName);
+        messageInput.value = '';
+      });
+
+      messageInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); sendBtn.click(); }
+      });
+
+      // typing indicator (per room)
+      messageInput.addEventListener('input', () => {
+        if (messageInput.value.trim()) socket.emit('typing', currentUserName);
+        else socket.emit('stopTyping', currentUserName);
+      });
+
+      socket.on('typing', (u) => { if (u !== currentUserName) typingDiv.innerText = `${u} is typing...`; });
+      socket.on('stopTyping', () => { typingDiv.innerText = ''; });
+
+      // Join room UI: placed at top
+      joinRoomBtn.addEventListener('click', () => {
+        const room = roomInput.value.trim();
+        if (!room) return alert('Enter a room name');
+        currentRoom = room;
+        currentRoomLabel.innerText = `Room: ${currentRoom}`;
+        messagesDiv.innerHTML = ''; // clear and load room history
+        socket.emit('joinRoom', { room: currentRoom, user: currentUserEmail, userName: currentUserName });
+      });
+
+      // file upload (respects currentRoom)
+      fileBtn.addEventListener('click', () => fileInput.click());
+      fileInput.addEventListener('change', () => {
+  const file = fileInput.files[0];
+  if (!file) return;
+  if (file.size === 0) {
+    alert('Cannot upload empty file.');
+    fileInput.value = '';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onerror = (err) => {
+    console.error('FileReader error', err);
+    alert('Error reading file.');
+  };
+  reader.onload = () => {
+    const base64 = reader.result; // data:<mime>;base64,<...>
+    socket.emit('fileMessage', {
+      user: currentUserEmail,
+      userName: currentUserName,
+      file: { name: file.name, type: file.type || 'application/octet-stream', data: base64 },
+      room: currentRoom
+    });
+  };
+  reader.readAsDataURL(file);
+  fileInput.value = '';
+});
+
+
+      // handle incoming events
+      socket.on('chatMessage', renderMessage);
+      socket.on('fileMessage', renderMessage);
+
+      // Private messages (DMs)
+      socket.on('privateMessage', (data) => { renderMessage(data); });
+
+      // Global public history (sent on joinChat)
+      socket.on('chatHistory', (messages) => {
+        messagesDiv.innerHTML = '';
+        messages.forEach(renderMessage);
+      });
+
+      // Room-specific history
+      socket.on('roomHistory', (messages) => {
+        messagesDiv.innerHTML = '';
+        messages.forEach(renderMessage);
+      });
+
+      // online users list (array of {email,name,room})
+      socket.on('onlineUsers', (users) => {
+        usersList.innerHTML = '';
+        users.forEach(u => {
+          const li = document.createElement('li');
+          li.className = 'user-row';
+
+          const left = document.createElement('div');
+          left.className = 'user-left';
+
+          // avatar
+          const img = document.createElement('img');
+          img.src = u.avatar || 'assets/avatar-placeholder.png';
+          img.className = 'user-avatar';
+          img.alt = u.name || u.email;
+          left.appendChild(img);
+
+          const nameSpan = document.createElement('span');
+          nameSpan.textContent = u.name || u.username || u.email;
+          nameSpan.className = 'user-name';
+          left.appendChild(nameSpan);
+
+          // DM button
+          const dmBtn = document.createElement('button');
+          dmBtn.textContent = 'DM';
+          dmBtn.className = 'btn dm-btn';
+          dmBtn.addEventListener('click', (ev) => {
+            ev.stopPropagation();
+            if (u.email === currentUserEmail) return;
+            const dmText = prompt(`Send private message to ${u.name || u.email}:`);
+            if (!dmText) return;
+            socket.emit('privateMessage', { to: u.email, from: currentUserEmail, msg: dmText, fromName: currentUserName, toName: u.name });
+          });
+
+          li.appendChild(left);
+          li.appendChild(dmBtn);
+          usersList.appendChild(li);
+        });
+      });
+
+      // optional system message (e.g., join notices)
+      socket.on('systemMessage', (m) => {
+        const p = document.createElement('p');
+        p.className = 'system';
+        p.textContent = `${m.text} (${formatTime(m.time)})`;
+        messagesDiv.appendChild(p);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      });
+    }
+  </script>
+</body>
+</html>

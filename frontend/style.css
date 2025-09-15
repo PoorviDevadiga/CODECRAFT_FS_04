@@ -1,0 +1,343 @@
+/* ================================
+   Global / Base
+   ================================ */
+
+/* ==== Accent variables & heading font (paste at top of style.css) ==== */
+:root{
+  --accent: #167a6d;       /* primary green you liked */
+  --accent-dark: #0a4d49;  /* darker green for gradients */
+  --accent-muted: #4d615c; /* muted green for taglines */
+  --bg-soft: #eef2f3;
+  --hero-font: 'Poppins', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+}
+
+* { box-sizing: border-box; font-family: 'Segoe UI', Roboto, Arial, sans-serif; }
+
+/* Full-page background: gradient overlay + image */
+body {
+  /* first layer is a subtle RGBA overlay using your accent color for consistent look */
+  background-image:
+    linear-gradient(rgba(11,91,86,0.16), rgba(11,91,86,0.16)),
+    url("./assets/hero.jpg");
+  background-size: cover;            /* image covers entire viewport */
+  background-position: center center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;      /* nice parallax on desktop */
+  min-height: 100vh;
+  margin: 0;
+  background-color: var(--bg-soft); /* fallback while image loads */
+  color: inherit;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-family: var(--hero-font);
+  line-height: 1.35;
+}
+
+@media (max-width: 768px) {
+  body {
+    background-attachment: scroll;
+  }
+}
+
+/* ================================
+   HERO / HEADER (uses assets/hero.jpg)
+   - This block controls the top hero image and the title/tagline.
+   - Put hero.jpg in frontend/assets/hero.jpg
+   ================================ */
+.hero {
+  background-image: linear-gradient(rgba(255, 255, 255, 0.55), rgba(255,255,255,0.55)), url('assets/hero.jpg');
+  background-size: cover;
+  background-position: center;
+  padding: 36px 20px;
+  text-align: center;
+}
+.hero-inner {
+  max-width: 900px;
+  margin: 0 auto;
+}
+.hero h1 {
+  margin: 0;
+  font-size: 36px;
+  letter-spacing: 0.4px;
+  color: var(--accent);   /* uses the green accent */
+  filter: none !important;
+  text-shadow: none !important;
+  font-weight: 700;
+  font-family: var(--accent-dark);
+}
+
+.hero .tagline {
+  margin: 6px 0 0;
+  font-style: italic;
+  color: var(--accent-muted);
+  filter: none !important;
+  font-weight: 340;
+  font-size: 18px;
+}
+
+h1, .tagline {
+  filter: none !important;
+  text-shadow: none !important;
+}
+
+
+/* ================================
+   Auth (register/login) centered block
+   - Controls layout of the register/login forms
+   ================================ */
+.centered-block {
+  max-width: 420px;
+  margin: 26px auto;
+  padding: 14px;
+  text-align: center;
+}
+.centered-block h2 { color: var(--accent); margin: 12px 0; }
+
+.centered-block input {
+  width: 100%;
+  padding: 12px;
+  margin: 8px 0;
+  border-radius: 4px;
+  border: 1px solid #cfd7d5;
+}
+/* register/login button appearance */
+.centered-block .btn {
+  background: linear-gradient(180deg, var(--accent), var(--accent-dark));
+  color: #fff;
+  border: none;
+  padding: 10px 14px;
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(11,63,61,0.12);
+}
+.centered-block .btn:hover { transform: translateY(-2px); }
+
+
+/* ================================
+   Chat container
+   - 'join-room' block, online users list, messages, composer area
+   ================================ */
+#chatSection {
+  max-width: 880px;
+  margin: 18px auto;
+  padding: 0 14px 36px;
+}
+
+#authSection, #chatSection {
+  background-color: rgba(255,255,255,0.85); /* subtle panel background for readability */
+  border-radius: 10px;
+  padding: 16px;
+}
+
+/* Join room + current room label + logout */
+.join-room {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.join-room input#roomInput {
+  padding: 10px;
+  width: 310px;
+  border-radius: 4px;
+  border: 1px solid #cfd7d5;
+}
+.room-label { font-weight: 600; margin-left: 6px; color: #0b3f3d; }
+.logout { margin-left: auto; }
+
+/* ================================
+   Online users list
+   - #onlineUsers and #usersList entries
+   ================================ */
+#onlineUsers { margin-bottom: 12px; }
+#usersList { list-style:none; padding: 0; margin: 6px 0 0; display:block; }
+.user-row {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding: 8px 6px;
+  border-radius: 6px;
+}
+.user-left {
+  display:flex;
+  align-items:center;
+  gap: 10px;
+}
+.user-avatar {
+  width:40px;
+  height:40px;
+  border-radius:50%;
+  object-fit:cover;
+  border: 2px solid #e6efec;
+  background:#fff;
+}
+.user-name { font-weight:500; color:#0f3b39; }
+
+/* DM button next to each user */
+.dm-btn { padding: 8px 12px; border-radius: 8px; }
+
+/* ================================
+   Messages area
+   - #messages container and individual message bubbles
+   - This block defines the WhatsApp-like stacked bubbles layout
+   ================================ */
+.messages {
+  border: 1px solid #e0e6e5;
+  height: 360px;
+  overflow-y: auto;
+  padding: 14px;
+  background: #ffffff;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* default p style inside messages: ensure each message is a stacked block */
+.messages p { margin: 0; max-width: 100%; }
+
+/* message bubbles */
+.bubble {
+  display: inline-block;
+  padding: 10px 14px;
+  border-radius: 18px;
+  line-height: 1.25;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.02);
+  word-break: break-word;
+  max-width: 65%;
+}
+
+/* left (others) */
+.bubble.left {
+  align-self: flex-start;
+  background: #fff;
+  border: 1px solid #eef2f1;
+  color: #08332f;
+}
+
+/* right (me) */
+.bubble.right {
+  align-self: flex-end;
+  background: linear-gradient(90deg,#e8ffef,#d6fbe8);
+  color: #08332f;
+}
+
+/* Direct messages (DM) style */
+.dm { font-style: normal; padding: 8px 12px; border-radius: 10px; background: #f6f8f8; border: 1px solid #e6efed; max-width:75%; }
+.dm.self { background: linear-gradient(90deg,#fffde6,#fff4d1); align-self:flex-end; }
+
+/* images/videos inside messages */
+.msg-image { max-width:240px; border-radius:8px; display:block; margin-top:8px; }
+.msg-video { max-width:240px; border-radius:8px; display:block; margin-top:8px; }
+
+/* time stamp inside a message */
+.time { display:inline-block; margin-left:8px; font-size:12px; color:#666; vertical-align:middle; }
+
+/* system messages */
+.system { font-style: italic; text-align:center; color:#606e6b; }
+
+/* ================================
+   Composer (input + send + file buttons)
+   ================================ */
+.composer {
+  display:flex;
+  gap:8px;
+  margin-top:12px;
+  align-items:center;
+}
+
+/* input */
+#messageInput {
+  flex: 1;
+  padding: 10px 12px;
+  border-radius:6px;
+  border:1px solid #cfd7d5;
+}
+
+/* generic button look (used by send/file/dm/register etc) */
+.btn {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 2px 0 rgba(0,0,0,0.03);
+  transition: transform 0.06s ease, box-shadow 0.06s ease;
+  background: #ffffff;
+  border: 1px solid #c8d1cf;
+}
+
+/* hover / active */
+.btn:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(11,63,61,0.06); }
+.btn:active { transform: translateY(0); }
+
+/* specific highlight for Send button */
+.btn.send {
+  background: linear-gradient(180deg, var(--accent), var(--accent-dark));
+  color: #fff;
+  border: none;
+  padding: 9px 16px;
+  box-shadow: 0 6px 18px rgba(11,63,61,0.12);
+}
+
+.btn.file {
+  background: linear-gradient(180deg, var(--accent), var(--accent-dark));
+  color: #fff;
+  border: none;
+  padding: 9px 12px;
+  box-shadow: 0 6px 18px rgba(11,63,61,0.12);
+}
+
+/* Accent style for Join Room, Logout, DM (same as Send & File) */
+/* Join Room button */
+#joinRoomBtn {
+  background: linear-gradient(180deg, var(--accent), var(--accent-dark));
+  color: #fff;
+  border: none;
+  padding: 9px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(11,63,61,0.12);
+}
+#joinRoomBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(11,63,61,0.18);
+}
+
+/* Logout button */
+.btn.logout {
+  background: linear-gradient(180deg, var(--accent), var(--accent-dark));
+  color: #fff;
+  border: none;
+  padding: 9px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(11,63,61,0.12);
+}
+.btn.logout:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(11,63,61,0.18);
+}
+
+/* DM button */
+.btn.dm-btn {
+  background: linear-gradient(180deg, var(--accent), var(--accent-dark));
+  color: #fff;
+  border: none;
+  padding: 9px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(11,63,61,0.12);
+}
+.btn.dm-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(11,63,61,0.18);
+}
+
+
+
+
+/* small screens adjustments */
+@media (max-width:640px) {
+  .messages { height: 50vh; }
+  .join-room input#roomInput { width: 130px; }
+  .bubble { max-width: 80%; }
+}
